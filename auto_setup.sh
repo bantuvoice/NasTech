@@ -16,8 +16,18 @@ export LANG=C
 export LC_ALL=C
 
 echo ""
-echo "🤖 CloudBot Non-Root Phone Control Installer"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║  ███╗   ██╗ █████╗ ███████╗████████╗███████╗ ██████╗██╗  ██╗║"
+echo "║  ████╗  ██║██╔══██╗██╔════╝╚══██╔══╝██╔════╝██╔════╝██║  ██║║"
+echo "║  ██╔██╗ ██║███████║███████╗   ██║   █████╗  ██║     ███████║║"
+echo "║  ██║╚██╗██║██╔══██║╚════██║   ██║   ██╔══╝  ██║     ██╔══██║║"
+echo "║  ██║ ╚████║██║  ██║███████║   ██║   ███████╗╚██████╗██║  ██║║"
+echo "║  ╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝   ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝║"
+echo "║                                                              ║"
+echo "║   NasTech AI v4.1 — 99 Features + Voice + Full Control      ║"
+echo "║   Telegram bot • Shizuku • Ollama • Voice • yt-dlp          ║"
+echo "║   Built by NasTech © 2025 — github.com/bantuvoice/NasTech   ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
 # =========================================================================
@@ -31,24 +41,36 @@ pkg update -y -o Dpkg::Options::="--force-confold" -o Dpkg::Options::="--force-c
 }
 
 # Install required packages (some may already exist — that's OK)
-pkg install -y curl nodejs git cmake make clang binutils nmap openssl android-tools which </dev/null 2>&1 || {
+pkg install -y curl nodejs git cmake make clang binutils nmap openssl android-tools which \
+    python ffmpeg espeak termux-api </dev/null 2>&1 || {
     echo "⚠️  Some packages may have failed to install, checking essentials..."
 }
+# Install espeak separately if needed (TTS for voice features)
+command -v espeak &>/dev/null || pkg install -y espeak </dev/null 2>&1 | tail -2 || true
+# Install ffmpeg separately if needed (voice/audio conversion)
+command -v ffmpeg &>/dev/null || pkg install -y ffmpeg </dev/null 2>&1 | tail -2 || true
 
 # Verify the critical ones exist
 MISSING=""
-for cmd in curl node git nmap adb; do
+for cmd in curl node git; do
     if ! command -v "$cmd" </dev/null >/dev/null 2>&1; then
         MISSING="$MISSING $cmd"
     fi
 done
 if [ -n "$MISSING" ]; then
     echo "❌ ERROR: Missing critical commands:$MISSING"
-    echo "   Try running: pkg install -y curl nodejs git nmap android-tools"
+    echo "   Try running: pkg install -y curl nodejs git"
     exit 1
 fi
 
-echo "✅ Dependencies installed"
+# adb and nmap are optional (Shizuku can work via rish without them)
+echo "   curl:    $(command -v curl    &>/dev/null && echo '✅' || echo '❌')"
+echo "   node:    $(command -v node    &>/dev/null && echo '✅' || echo '❌')"
+echo "   git:     $(command -v git     &>/dev/null && echo '✅' || echo '❌')"
+echo "   ffmpeg:  $(command -v ffmpeg  &>/dev/null && echo '✅ (voice conversion)' || echo '⚠️  run: pkg install ffmpeg')"
+echo "   espeak:  $(command -v espeak  &>/dev/null && echo '✅ (TTS voice)' || echo '⚠️  run: pkg install espeak')"
+echo "   adb:     $(command -v adb     &>/dev/null && echo '✅' || echo '⚠️  optional: pkg install android-tools')"
+echo "✅ Core dependencies installed"
 
 # =========================================================================
 # Step 2/5: Setup Shizuku (rish & shizuku commands)
@@ -598,11 +620,11 @@ if [ -f "$SCRIPT_DIR/nastech_bot.js" ]; then
     chmod +x "$NASTECH_DIR/nastech_phone.sh"
     echo "✅ Bot files copied from repo"
 else
-    # Fetch from API server
-    API_BASE="${NASTECH_API_URL:-https://raw.githubusercontent.com/jarvesusaram99/Openclaw-Termux-NoRoot/main}"
+    # Fetch from NasTech GitHub repo
+    API_BASE="${NASTECH_API_URL:-https://raw.githubusercontent.com/bantuvoice/NasTech/main/Openclaw-Termux-NoRoot}"
     for FILE in nastech_bot.js nastech_phone.sh package.json; do
         curl -fsSL "$API_BASE/$FILE" -o "$NASTECH_DIR/$FILE" 2>/dev/null || \
-            warn "Could not fetch $FILE"
+            echo "⚠️  Could not fetch $FILE — check internet connection"
     done
     chmod +x "$NASTECH_DIR/nastech_phone.sh" 2>/dev/null || true
 fi
@@ -614,11 +636,16 @@ mkdir -p ~/.nastech/downloads ~/.nastech/tmp
 echo "📦 Installing Node.js bot dependencies..."
 cd "$NASTECH_DIR" || exit 1
 npm install --no-audit --no-fund 2>&1 | tail -5 || {
-    warn "npm install had issues — trying one by one..."
-    for PKG in node-telegram-bot-api "node-fetch@2" dotenv axios; do
-        npm install "$PKG" --no-audit 2>&1 | tail -1
+    echo "⚠️  npm install had issues — installing one by one..."
+    for PKG in node-telegram-bot-api "node-fetch@2" dotenv axios form-data; do
+        npm install "$PKG" --no-audit --no-fund 2>&1 | tail -1
     done
 }
+# Verify critical packages
+echo "   node-telegram-bot-api: $([ -d node_modules/node-telegram-bot-api ] && echo '✅' || echo '❌')"
+echo "   node-fetch:            $([ -d node_modules/node-fetch ] && echo '✅' || echo '❌')"
+echo "   form-data:             $([ -d node_modules/form-data ] && echo '✅ (voice upload)' || echo '❌')"
+echo "   dotenv:                $([ -d node_modules/dotenv ] && echo '✅' || echo '❌')"
 echo "✅ Bot dependencies installed"
 
 # =========================================================================
@@ -712,10 +739,12 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'
 BOLD='\033[1m'; NC='\033[0m'
 
 BANNER="${CYAN}${BOLD}
-╔═══════════════════════════════════════════════════════════╗
-║   🤖  N A S T E C H   A I   v 2 . 0                     ║
-║   OpenClaw + Copilot CLI + Ollama + Multi-API            ║
-╚═══════════════════════════════════════════════════════════╝${NC}"
+╔═════════════════════════════════════════════════════════════╗
+║   🤖  N A S T E C H   A I   v 4 . 1                       ║
+║   99 Features · Voice · Full Android Control               ║
+║   Telegram bot · Shizuku · Ollama · yt-dlp                ║
+║   Built by NasTech © 2025                                  ║
+╚═════════════════════════════════════════════════════════════╝${NC}"
 
 case "${1:-help}" in
     bot|start)
