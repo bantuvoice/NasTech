@@ -1,0 +1,24 @@
+{
+  "name": "nastech-ai",
+  "version": "3.0.0",
+  "description": "NasTech AI v3 — OpenClaw + Copilot CLI + Ollama + File Manager + Chrome + Downloader",
+  "main": "nastech_bot.js",
+  "type": "commonjs",
+  "bin": {
+    "nastech": "./nastech_bot.js",
+    "nt": "./nastech_bot.js"
+  },
+  "scripts": {
+    "start":   "node nastech_bot.js --mode=bot",
+    "bot":     "node nastech_bot.js --mode=bot",
+    "cli":     "node nastech_bot.js --mode=cli",
+    "copilot": "node nastech_bot.js --mode=copilot"
+  },
+  "dependencies": {
+    "node-telegram-bot-api": "^0.66.0",
+    "node-fetch": "^2.7.0",
+    "dotenv": "^16.3.1",
+    "axios": "^1.6.0"
+  },
+  "engines": { "node": ">=16.0.0" }
+}
