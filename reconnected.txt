@@ -1,0 +1,318 @@
+================================================================================
+  NasTech AI v4 — COMPLETE SETUP & RECONNECT GUIDE
+  Everything you need — copy and paste exactly as shown
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 1 — FIRST TIME INSTALL (run once in Termux)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Step 1: Open Termux on your Android phone
+
+Step 2: Paste this ONE command to install everything:
+
+  curl -sL https://raw.githubusercontent.com/bantuvoice/NasTech/main/auto_setup.sh | bash
+
+   OR if that doesn't work:
+
+  pkg install -y git && git clone https://github.com/bantuvoice/NasTech.git ~/NasTech && bash ~/NasTech/auto_setup.sh
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 2 — SHIZUKU SETUP (MUST DO — gives phone control)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Shizuku lets the bot control your phone WITHOUT root.
+You must do this ONCE. After that it reconnects automatically.
+
+── METHOD A: Wireless Debugging (Recommended — works on Android 11+) ──────────
+
+1. Enable Developer Options:
+   → Settings → About phone
+   → Tap "Build number" 7 times fast
+   → You'll see "You are now a developer!"
+
+2. Enable Wireless Debugging:
+   → Settings → Developer options
+   → Scroll down, find "Wireless debugging"
+   → Turn it ON
+   → Tap "Wireless debugging" text (not the toggle) to open it
+   → You'll see a pairing code and port number
+
+3. Open Shizuku app:
+   → Tap "Start" button
+   → Choose "Start via Wireless Debugging"
+   → Shizuku will pair automatically
+   → Top of Shizuku app should say "Shizuku is running" ✅
+
+4. Connect Shizuku to Termux:
+   → In Shizuku app, tap "Use Shizuku in terminal apps"
+   → Tap "Export files"
+   → A folder picker opens
+   → Navigate to: Internal Storage (the root)
+   → Find or create a folder named "Shizuku"
+   → Tap on that "Shizuku" folder
+   → Tap "USE THIS FOLDER" button at the bottom
+   → Tap "Allow" on the popup
+
+5. Go back to Termux and run:
+   nastech-reconnect
+
+6. You should see: "✅ Shizuku connected! rish is working."
+
+
+── METHOD B: ADB via PC (if Method A doesn't work) ───────────────────────────
+
+1. Install ADB on your PC: https://developer.android.com/tools/releases/platform-tools
+2. Enable USB Debugging: Settings → Developer options → USB debugging → ON
+3. Connect phone to PC via USB
+4. On PC, open terminal/cmd:
+
+   adb devices
+   (Accept the fingerprint popup on your phone)
+
+   adb shell sh $(pm path moe.shizuku.privileged.api | awk -F: '{print $2}')/assets/rish
+
+5. Now in Shizuku app → tap "Use Shizuku in terminal apps" → "Export files"
+   → Choose the Shizuku folder → Use This Folder → Allow
+6. In Termux: nastech-reconnect
+
+
+── METHOD C: If Shizuku keeps disconnecting ───────────────────────────────────
+
+Run this in Termux every time you restart the phone:
+
+   shizuku
+
+   Then:
+
+   nastech-reconnect
+
+   To make it auto-start on boot, add to Termux's startup:
+
+   echo 'sleep 5 && shizuku' >> ~/.bashrc
+
+
+── VERIFY Shizuku is working ──────────────────────────────────────────────────
+
+   rish -c whoami
+
+   ✅ Should print: shell  (or u0_a...)
+   ❌ If error: Shizuku is not connected, repeat steps above
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 3 — START THE BOT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+After install, start the bot:
+
+   nastech bot
+
+   OR (same thing):
+
+   cd ~/.nastech/bot && node nastech_bot.js --mode=bot
+
+To start as background service (runs even when Termux is closed):
+
+   nohup nastech bot > ~/.nastech/bot.log 2>&1 &
+
+To stop it:
+
+   pkill -f nastech_bot
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 4 — TELEGRAM BOT SETUP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Open Telegram → search @BotFather → /newbot
+2. Follow prompts, get your BOT TOKEN (looks like: 123456:ABCdef...)
+3. Get your Telegram user ID: message @userinfobot → copy the "Id:" number
+4. Edit the config:
+
+   nano ~/.nastech/config.env
+
+   Set:
+   export TELEGRAM_BOT_TOKEN="YOUR_BOT_TOKEN_HERE"
+   export TELEGRAM_ADMIN_ID="YOUR_USER_ID_HERE"
+
+5. Save (Ctrl+O then Ctrl+X in nano)
+6. Start the bot: nastech bot
+7. Open Telegram → find your bot → send /start
+8. Keyboard buttons appear at the bottom of the chat ✅
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 5 — ALL KEYBOARD BUTTONS (what each does)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The bot has a keyboard at the BOTTOM of Telegram chat. Just tap the buttons.
+
+┌─────────────────────────────────────────────────────────────────────┐
+│  🔋 Battery      │  📱 Device Info   │  💾 Storage                 │
+│  Shows level,    │  Brand, model,    │  How much space              │
+│  temp, charging  │  Android version  │  is used/free                │
+├──────────────────┼───────────────────┼──────────────────────────────┤
+│  📸 Screenshot   │  🎬 Record Screen │  🔒 Lock Screen              │
+│  Takes screen    │  Records 10 secs  │  Locks the phone             │
+│  shot & sends it │  & sends video    │  immediately                 │
+├──────────────────┼───────────────────┼──────────────────────────────┤
+│  🎵 Send Song    │  🎬 Send Video    │  📁 Browse Files             │
+│  Ask song name   │  Ask video name   │  Browse Downloads,           │
+│  → searches phone│  → searches phone │  Music, DCIM, etc            │
+│  → sends MP3     │  → sends MP4      │  → tap to list files         │
+├──────────────────┼───────────────────┼──────────────────────────────┤
+│  ⬇️ Download     │  ▶️ YouTube DL    │  🌐 Open Chrome              │
+│  Paste any URL   │  Paste YouTube URL│  Type URL or search          │
+│  → downloads     │  → sends MP3/MP4  │  → opens in Chrome           │
+│  → sends to you  │  to your Telegram │  on your phone               │
+├──────────────────┼───────────────────┼──────────────────────────────┤
+│  📶 WiFi         │  🔊 Volume        │  💡 Display                  │
+│  WiFi/BT/Mobile/ │  Volume +/-       │  Dark mode, DND,             │
+│  Airplane/Hotspot│  Mute/Unmute      │  Brightness, Rotation        │
+├──────────────────┼───────────────────┼──────────────────────────────┤
+│  📞 Calls & SMS  │  📱 Apps          │  🧠 Ask AI                   │
+│  Call/SMS/WA     │  List/Open/Kill/  │  Chat with Ollama/           │
+│  notifications   │  Clear any app    │  Groq/Gemini AI              │
+├──────────────────┼───────────────────┼──────────────────────────────┤
+│  🔴 Power Off    │  🔄 Reboot        │  📊 Status                   │
+│  Turns phone OFF │  Restarts phone   │  Shows Shizuku, AI,          │
+│  (asks confirm)  │  (asks confirm)   │  downloads status            │
+├──────────────────┼───────────────────┼──────────────────────────────┤
+│  ⚙️ Settings     │  📝 Run Command   │  ❌ Cancel                   │
+│  Models, APIs,   │  Type any ADB/    │  Cancel current              │
+│  reconnect, info │  shell command    │  operation                   │
+└─────────────────────────────────────────────────────────────────────┘
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 6 — WHAT YOU CAN SAY (Natural Language)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You can also just TYPE anything to the bot (AI will understand):
+
+  "send me the song Blinding Lights"    → searches phone, sends MP3
+  "download this https://url.com/a.mp3" → downloads and sends
+  "open YouTube and search Burna Boy"   → opens YouTube app with search
+  "take a screenshot"                   → screenshot sent to you
+  "turn off WiFi"                       → turns WiFi off
+  "what's my battery level"             → battery info
+  "open Chrome and go to google.com"    → opens Chrome
+  "write Python code to sort a list"    → AI generates code
+  "turn on dark mode"                   → dark mode on
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 7 — TERMINAL COMMANDS (run in Termux directly)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  nastech bot             → Start Telegram bot
+  nastech cli             → Interactive AI terminal
+  nastech serve           → Start Ollama AI server
+  nastech status          → Check everything
+  nastech-reconnect       → Reconnect Shizuku
+  nastech-phone battery   → Battery info
+  nastech-phone poweroff  → Power off phone
+  nastech-phone shutdown  → Same as poweroff
+  nastech-phone reboot    → Reboot phone
+  nastech-phone wifi on   → WiFi on
+  nastech-phone wifi off  → WiFi off
+  nastech-phone screenshot → Take screenshot
+  nastech-phone find-songs [name]   → Find songs
+  nastech-phone find-videos [name]  → Find videos
+  nastech-phone chrome https://url  → Open in Chrome
+  nastech-phone ytdl [url]          → Download YouTube
+  nastech-phone search-files [name] → Search storage
+  nastech-phone ls-downloads        → List downloads folder
+  nastech-phone shell [cmd]         → Run any ADB command
+  rish -c "any command"             → Direct Shizuku shell
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 8 — FIX COMMON ERRORS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ERROR: "rish_shizuku.dex not found"
+  FIX: Open Shizuku app → Use Shizuku in terminal apps → Export files
+       → Pick the Shizuku folder → Allow
+       Then: nastech-reconnect
+
+ERROR: "Shizuku is not running"
+  FIX: Open Shizuku app → tap Start → Start via Wireless Debugging
+       Enable Wireless Debugging in Developer Options first
+       Then: shizuku && nastech-reconnect
+
+ERROR: "TELEGRAM_BOT_TOKEN not set"
+  FIX: nano ~/.nastech/config.env
+       Add: export TELEGRAM_BOT_TOKEN="your_token"
+       Save → nastech bot
+
+ERROR: "Cannot find module 'node-telegram-bot-api'"
+  FIX: cd ~/.nastech/bot && npm install
+
+ERROR: "Ollama offline" or AI not working
+  FIX: nastech serve   (starts Ollama)
+       ollama pull tinyllama   (download a model)
+       OR the bot falls back to Groq/Gemini automatically
+
+ERROR: "yt-dlp not found"
+  FIX: pip install yt-dlp
+       OR: pip3 install yt-dlp
+
+ERROR: Files not found on phone
+  FIX: Run in Termux: termux-setup-storage
+       Tap Allow on popup
+       Then try again
+
+ERROR: Bot polling conflict (another instance running)
+  FIX: pkill -f nastech_bot
+       nastech bot
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 9 — UPDATE (get latest version)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  cd ~/NasTech && git pull && cp nastech_bot.js ~/.nastech/bot/ && cp nastech_phone.sh ~/.nastech/bot/ && echo "Updated!"
+
+  Then restart: pkill -f nastech_bot && nastech bot
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 10 — USEFUL ADB / SHIZUKU COMMANDS (advanced)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  rish -c "reboot"                     → reboot phone
+  rish -c "reboot -p"                  → power off phone
+  rish -c "input tap 500 1000"         → tap screen at 500,1000
+  rish -c "input text 'hello'"         → type text
+  rish -c "screencap -p /sdcard/s.png" → screenshot
+  rish -c "dumpsys battery"            → battery info
+  rish -c "pm list packages"           → all apps
+  rish -c "am force-stop com.app"      → kill app
+  rish -c "svc wifi enable"            → wifi on
+  rish -c "svc wifi disable"           → wifi off
+  rish -c "svc data enable"            → mobile data on
+  rish -c "settings put global airplane_mode_on 1"  → airplane on
+  rish -c "cmd uimode night yes"       → dark mode on
+  rish -c "input keyevent 26"          → lock screen
+  rish -c "input keyevent 3"           → home button
+  rish -c "input keyevent 4"           → back button
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+QUICK REFERENCE CARD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+INSTALL:   curl -sL https://raw.githubusercontent.com/bantuvoice/NasTech/main/auto_setup.sh | bash
+START BOT: nastech bot
+RECONNECT: nastech-reconnect
+STATUS:    nastech status
+SHIZUKU:   shizuku (after phone reboot)
+CONFIG:    nano ~/.nastech/config.env
+LOGS:      tail -f ~/.nastech/nastech.log
+
+GitHub: https://github.com/bantuvoice/NasTech
+
+================================================================================
