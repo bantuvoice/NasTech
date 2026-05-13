@@ -549,23 +549,49 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 mkdir -p ~/.nastech/bot ~/.nastech/logs ~/.nastech/history
 
-cat > ~/.nastech/config.env << 'CONFIGEOF'
+# ── Interactive credential wizard ─────────────────────────────────────────────
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "🔑 NasTech Credential Setup"
+echo "   Press Enter to skip any item (edit later: nano ~/.nastech/config.env)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+_ask() {
+    local LABEL="$1" VAR="$2"
+    eval "local CUR=\${$VAR}"
+    if [ -n "$CUR" ]; then
+        echo "   ✅ $LABEL already set"
+        return
+    fi
+    printf "   📌 %s:\n   > " "$LABEL"
+    local INPUT
+    read -r INPUT </dev/tty 2>/dev/null || INPUT=""
+    INPUT=$(echo "$INPUT" | tr -d '[:space:]')
+    [ -n "$INPUT" ] && eval "export $VAR='$INPUT'" && echo "   ✅ Saved"
+}
+
+_ask "Telegram Bot Token  (from @BotFather)"         TELEGRAM_BOT_TOKEN
+_ask "Telegram Admin ID   (from @userinfobot)"        TELEGRAM_ADMIN_ID
+_ask "Groq API Key        (free: console.groq.com — enables voice/Whisper)" GROQ_API_KEY
+_ask "Gemini API Key      (free: aistudio.google.com — AI fallback)"        GEMINI_API_KEY
+_ask "OpenRouter API Key  (optional: openrouter.ai)"  OPENROUTER_API_KEY
+
+# Write actual values directly — no template variables
+cat > ~/.nastech/config.env << CONFIGEOF
 # ── NasTech AI Configuration ─────────────────────────────────────────────────
-# Edit this file to change models, APIs, and settings
-# Location: ~/.nastech/config.env
+# Edit: nano ~/.nastech/config.env  |  Apply: source ~/.nastech/config.env
 
 # ── Telegram Bot ──────────────────────────────────────────────────────────────
 export TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
 export TELEGRAM_ADMIN_ID="${TELEGRAM_ADMIN_ID:-}"
 
-# ── AI Providers (fallback chain: Ollama → Groq → OpenRouter → Gemini) ────────
+# ── AI Providers (fallback: Ollama → Groq → OpenRouter → Gemini) ─────────────
 export OLLAMA_URL="${OLLAMA_URL:-http://127.0.0.1:11434}"
 export GROQ_API_KEY="${GROQ_API_KEY:-}"
 export OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}"
 export GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 
 # ── Default Model ─────────────────────────────────────────────────────────────
-# Options: tinyllama | llama3.2:1b | phi3:mini | gemma:2b | qwen2.5:1.5b
 export DEFAULT_MODEL="${DEFAULT_MODEL:-llama3.2:1b}"
 
 # ── Feature Flags ─────────────────────────────────────────────────────────────
@@ -573,14 +599,14 @@ export NASTECH_LOG_LEVEL="${NASTECH_LOG_LEVEL:-info}"
 export NASTECH_AUTO_RESTART="${NASTECH_AUTO_RESTART:-true}"
 CONFIGEOF
 
-# Write actual credentials if available in environment
-[ -n "$TELEGRAM_BOT_TOKEN" ] && sed -i "s|TELEGRAM_BOT_TOKEN:-}|TELEGRAM_BOT_TOKEN:-$TELEGRAM_BOT_TOKEN}|" ~/.nastech/config.env
-[ -n "$TELEGRAM_ADMIN_ID" ] && sed -i "s|TELEGRAM_ADMIN_ID:-}|TELEGRAM_ADMIN_ID:-$TELEGRAM_ADMIN_ID}|" ~/.nastech/config.env
-[ -n "$OLLAMA_URL" ] && sed -i "s|OLLAMA_URL:-http://127.0.0.1:11434}|OLLAMA_URL:-$OLLAMA_URL}|" ~/.nastech/config.env
-[ -n "$GROQ_API_KEY" ] && sed -i "s|GROQ_API_KEY:-}|GROQ_API_KEY:-$GROQ_API_KEY}|" ~/.nastech/config.env
-[ -n "$OPENROUTER_API_KEY" ] && sed -i "s|OPENROUTER_API_KEY:-}|OPENROUTER_API_KEY:-$OPENROUTER_API_KEY}|" ~/.nastech/config.env
-[ -n "$GEMINI_API_KEY" ] && sed -i "s|GEMINI_API_KEY:-}|GEMINI_API_KEY:-$GEMINI_API_KEY}|" ~/.nastech/config.env
-
+echo ""
+echo "   📋 Config summary:"
+[ -n "$TELEGRAM_BOT_TOKEN" ] && echo "   ✅ Bot Token     — configured" || echo "   ❌ Bot Token     — MISSING (bot won't start without this!)"
+[ -n "$TELEGRAM_ADMIN_ID" ]  && echo "   ✅ Admin ID      — configured" || echo "   ❌ Admin ID      — MISSING (bot won't start without this!)"
+[ -n "$GROQ_API_KEY" ]       && echo "   ✅ Groq Key      — voice/Whisper enabled" || echo "   ⚠️  Groq Key      — empty (voice transcription disabled)"
+[ -n "$GEMINI_API_KEY" ]     && echo "   ⚠️  Gemini Key    — AI fallback enabled" || echo "   ⚠️  Gemini Key    — empty (Ollama only)"
+echo ""
+echo "   Edit anytime: nano ~/.nastech/config.env"
 echo "✅ Config written to ~/.nastech/config.env"
 
 # =========================================================================
