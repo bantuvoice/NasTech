@@ -633,6 +633,7 @@ const PHONE = {
   poweroff()    { rp('reboot -p 2>/dev/null')||rp('svc power shutdown 2>/dev/null')||rp('am start -a android.intent.action.ACTION_REQUEST_SHUTDOWN'); return '🔴 Power off sent...'; },
   // F98: Reboot
   reboot()      { rp('reboot'); return '🔄 Reboot sent...'; },
+  // F99: All 99 Features list (handled in st_features callback)
   // Misc helpers
   chrome(u)     { const url=u.startsWith('http')?u:`https://${u}`; rp(`am start -a android.intent.action.VIEW -d "${url}" -n com.android.chrome/com.google.android.apps.chrome.Main 2>/dev/null`)||rp(`am start -a android.intent.action.VIEW -d "${url}"`); return `🌐 Chrome: ${url}`; },
   openUrl(u)    { rp(`am start -a android.intent.action.VIEW -d "${u}"`); return `🌐 Opened: ${u}`; },
@@ -948,7 +949,7 @@ function startBot() {
       if(b) return send(id,`✅ Shizuku via *${b.toUpperCase()}* — Test: \`${PHONE.shell('whoami')}\``);
       return send(id,'❌ Shizuku not connected\nRun: `nastech-reconnect`\nSee reconnected.txt for full guide');
     }
-    if (data==='st_features') {
+    if (data==='st_features') { // F99: Show all 99 features list
       return send(id,
         `*NasTech AI v4.1 — All 99 Features:*\n\n` +
         `*System Info (8):* Battery, Device, Storage, CPU/RAM, Processes, Network, Uptime, App stats\n\n` +
