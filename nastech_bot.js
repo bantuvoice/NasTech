@@ -465,8 +465,22 @@ const PHONE = {
   brightness(v) { rp('settings put system screen_brightness_mode 0'); rp(`settings put system screen_brightness ${v}`); return `☀️ Brightness: ${v}/255`; },
   // F15: Screen timeout
   timeout(ms)   { rp(`settings put system screen_off_timeout ${ms}`); return `🕒 Timeout: ${ms/1000}s`; },
-  // F16-25: File operations handled by file manager above
-  // F26-31: Download operations handled above
+  // F16: Browse files (file manager)
+  // F17: Search files
+  // F18: Latest photo
+  // F19: Latest video
+  // F20: Latest download
+  // F21: WhatsApp media
+  // F22: DCIM folder
+  // F23: Music folder
+  // F24: Downloads folder
+  // F25: Bulk file send
+  // F26: Download URL (direct link)
+  // F27: YouTube MP3
+  // F28: YouTube MP4
+  // F29: YouTube playlist
+  // F30: Instagram download
+  // F31: TikTok download
   // F32: WiFi
   wifi(s)       { rp(s==='on'?'svc wifi enable':'svc wifi disable'); return `📶 WiFi ${s.toUpperCase()}`; },
   // F33: Mobile data
@@ -509,17 +523,24 @@ const PHONE = {
   fontsize(s)   { const v={'large':1.3,'normal':1.0,'small':0.85}[s]||1.0; rp(`settings put system font_scale ${v}`); return `🔤 Font: ${s}`; },
   // F52: Extra dim
   extraDim(s)   { rp(`settings put secure reduce_bright_colors_activated ${s==='on'?1:0} 2>/dev/null`); return `💤 Extra Dim ${s.toUpperCase()}`; },
-  // F53-F60: Screen interactions
+  // F53: Home button
   home()        { rp('input keyevent 3');   return '🏠 Home'; },
+  // F54: Back button
   back()        { rp('input keyevent 4');   return '⬅️ Back'; },
+  // F55: Recents
   recent()      { rp('input keyevent 187'); return '📋 Recents'; },
+  // F56: Scroll up
   scrollUp()    { rp('input swipe 500 800 500 1500 300');  return '📜 Scrolled up'; },
+  // F57: Scroll down
   scrollDown()  { rp('input swipe 500 1500 500 800 300');  return '📜 Scrolled down'; },
+  // F58: Tap screen at coordinates
   tap(x,y)      { rp(`input tap ${x} ${y}`); return `👆 Tapped (${x},${y})`; },
+  // F59: Type text
   typeText(t)   { rp(`input text "${t.replace(/ /g,'%s').replace(/['"]/g,'')}"`); return `⌨️ Typed`; },
   enter()       { rp('input keyevent 66'); return '↩️ Enter'; },
   del()         { rp('input keyevent 67'); return '⌫ Delete'; },
   space()       { rp('input keyevent 62'); return '␣ Space'; },
+  // F60: UI dump & find-and-tap
   uiDump() {
     rp('uiautomator dump /sdcard/ui_dump.xml 2>/dev/null');
     const r=runPhone('cat /sdcard/ui_dump.xml');
@@ -539,26 +560,39 @@ const PHONE = {
     rp(`input tap ${cx} ${cy}`);
     return `✅ Tapped "${text}" at (${cx},${cy})`;
   },
-  // F61-F64: Media keys
+  // F61: Play/Pause media
   play()        { rp('input keyevent 85');  return '⏯ Play/Pause'; },
+  // F62: Next track
   next()        { rp('input keyevent 87');  return '⏭ Next'; },
+  // F63: Previous track
   prev()        { rp('input keyevent 88');  return '⏮ Previous'; },
+  // F64: Stop media
   stop()        { rp('input keyevent 86');  return '⏹ Stopped'; },
   // F65: Open music app
   musicApp()    { rp('am start -a android.intent.action.MUSIC_PLAYER 2>/dev/null||am start com.spotify.music/.MainActivity 2>/dev/null'); return '🎵 Music app opened'; },
-  // F66-F71: Communications
+  // F66: Phone call
   call(n)       { rp(`am start -a android.intent.action.CALL -d tel:${n}`); return `📞 Calling ${n}`; },
+  // F67: Send SMS
   sms(n,m)      { rp(`am start -a android.intent.action.SENDTO -d sms:${n} --es sms_body "${m}"`); return `💬 SMS to ${n}`; },
+  // F68: WhatsApp message
   wa(n,m)       { rp(`am start -a android.intent.action.VIEW -d "https://wa.me/${n}?text=${encodeURIComponent(m)}"`); return `💚 WhatsApp → ${n}`; },
+  // F69: Push notification
   notify(t,b)   { rp(`cmd notification post -S bigtext -t "${t}" "NasTech" "${b}"`); return `🔔 Notification: ${t}`; },
+  // F70: Export contacts to file
   contacts()    { return runPhone('content query --uri content://contacts/phones/ --projection display_name:number 2>/dev/null|head -30').out||'Cannot access contacts — need Shizuku'; },
+  // F71: Share location via WhatsApp
   waLocation()  { rp('am start -a android.intent.action.VIEW -d "https://wa.me/?text=My+location"'); return '📍 Location share opened in WA'; },
-  // F72-F78: App management
+  // F72: List installed apps
   listApps(f='')  { return runPhone(`pm list packages ${f} 2>/dev/null|sed 's/package://'|sort`).out||'N/A'; },
+  // F73: Open app by package name
   openApp(p)      { rp(`monkey -p ${p} -c android.intent.category.LAUNCHER 1 2>/dev/null||am start ${p} 2>/dev/null`); return `▶️ Opened: ${p}`; },
+  // F74: Force-stop app
   killApp(p)      { rp(`am force-stop ${p}`); return `💀 Killed: ${p}`; },
+  // F75: Clear app data/cache
   clearApp(p)     { rp(`pm clear ${p}`); return `🧹 Cleared: ${p}`; },
+  // F76: Uninstall app
   uninstall(p)    { rp(`pm uninstall --user 0 ${p} 2>/dev/null`); return `🗑 Uninstalled: ${p}`; },
+  // F77: Install APK from URL
   async installApk(url) {
     const dest=path.join(DL_DIR,`app_${Date.now()}.apk`);
     const r=await shAsync(`curl -L -o "${dest}" "${url}" 2>&1`,120000);
@@ -567,6 +601,7 @@ const PHONE = {
     if(!ir.ok) { rp(`am start -a android.intent.action.VIEW -d "file://${dest}" -t application/vnd.android.package-archive`); return `📦 APK ready — install dialog opened`; }
     return `✅ Installed APK`;
   },
+  // F78: List running apps
   runningApps()   { return runPhone("dumpsys activity activities|grep mResumedActivity||dumpsys activity recents|grep 'Recent #'|head -10").out||'N/A'; },
   // F79: Flashlight
   flash(s)      { rp(`cmd media_session volume --stream BEEP --set 5 2>/dev/null;camera -q 2>/dev/null`); const r=runPhone(`am start -a android.media.action.VIDEO_CAPTURE 2>/dev/null`); return s==='on'?rp('input keyevent 0x100000f 2>/dev/null')||'🔦 Flashlight ON (try Termux:API: termux-torch on)':'🔦 Flashlight OFF'; },
@@ -593,7 +628,9 @@ const PHONE = {
   // F85: Battery saver
   batterySaver(s){ rp(`settings put global low_power ${s==='on'?1:0} 2>/dev/null`); return `🔋 Battery Saver ${s.toUpperCase()}`; },
   // F45: TTS speak (handled in voice section above)
-  // F86-F88: Voice (handled in message handler)
+  // F86: Voice message transcription (Groq Whisper)
+  // F87: TTS phone speaker (espeak-ng)
+  // F88: Auto-reply with TTS voice
   // F89: AI chat (handled in aiChat())
   // F90: AI describe screenshot
   async aiVision(bot, chatId, imgPath) {
