@@ -1,10 +1,14 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # =========================================================================
-# 🤖 CloudBot + Shizuku Universal Installer
+# 🤖 NasTech AI v4.1 — Universal Installer
 # =========================================================================
 # Designed to run via: curl -sL <url> | bash
 # Fully non-interactive — no prompts, no hangs, no silent exits.
+# 11 Steps: deps → shizuku → network → openclaw → ai brain →
+#           ollama → config → bot → vim → copilot-cli → cli cmds
 # =========================================================================
+
+warn() { echo "⚠️  $*"; }
 
 # ── Global Settings ──────────────────────────────────────────────────────
 # Do NOT use "set -e" — it kills the script on any minor failure.
@@ -31,9 +35,9 @@ echo "╚═══════════════════════�
 echo ""
 
 # =========================================================================
-# Step 1/5: Update Packages & Install Dependencies
+# Step 1/11: Update Packages & Install Dependencies
 # =========================================================================
-echo "📦 Step 1/5: Updating packages and installing dependencies..."
+echo "📦 Step 1/11: Updating packages and installing dependencies..."
 
 # Update with all non-interactive flags to prevent config file prompts
 pkg update -y -o Dpkg::Options::="--force-confold" -o Dpkg::Options::="--force-confdef" </dev/null 2>&1 || {
@@ -73,10 +77,10 @@ echo "   adb:     $(command -v adb     &>/dev/null && echo '✅' || echo '⚠️
 echo "✅ Core dependencies installed"
 
 # =========================================================================
-# Step 2/5: Setup Shizuku (rish & shizuku commands)
+# Step 2/11: Setup Shizuku (rish & shizuku commands)
 # =========================================================================
 echo ""
-echo "🔒 Step 2/5: Linking Shizuku to Termux..."
+echo "🔒 Step 2/11: Linking Shizuku to Termux..."
 
 # Setup Termux storage access (may show a popup on first run)
 if [ ! -d "$HOME/storage" ]; then
@@ -315,10 +319,10 @@ chmod +x "${BIN}/nastech-reconnect"
 echo "✅ nastech-reconnect command installed"
 
 # =========================================================================
-# Step 3/5: Fix Node.js IPv4 DNS (Crucial for Termux)
+# Step 3/11: Fix Node.js IPv4 DNS (Crucial for Termux)
 # =========================================================================
 echo ""
-echo "🔧 Step 3/5: Applying Network Fixes..."
+echo "🔧 Step 3/11: Applying Network Fixes..."
 if ! grep -q "NODE_OPTIONS=--dns-result-order=ipv4first" ~/.bashrc 2>/dev/null; then
     echo "export NODE_OPTIONS=--dns-result-order=ipv4first" >> ~/.bashrc
 fi
@@ -326,22 +330,22 @@ export NODE_OPTIONS=--dns-result-order=ipv4first
 echo "✅ IPv4 DNS fix applied"
 
 # =========================================================================
-# Step 4/5: Install Official OpenClaw
+# Step 4/11: Install Official OpenClaw
 # =========================================================================
 echo ""
 
 if command -v openclaw &>/dev/null || [ -d "$HOME/.openclaw/repo" ]; then
-    echo "✅ Step 4/5: OpenClaw is already installed! Skipping installation."
+    echo "✅ Step 4/11: OpenClaw is already installed! Skipping installation."
 else
-    echo "📦 Step 4/5: Installing OpenClaw. This takes a few minutes..."
+    echo "📦 Step 4/11: Installing OpenClaw. This takes a few minutes..."
     bash -c "$(curl -sSL https://myopenclawhub.com/install)" < /dev/tty && source ~/.bashrc 2>/dev/null
 fi
 
 # =========================================================================
-# Step 5/5: Inject Shizuku Phone Control Scripts & AI Override
+# Step 5/11: Inject Shizuku Phone Control Scripts & AI Override
 # =========================================================================
 echo ""
-echo "🧠 Step 5/5: Configuring AI Phone Controller..."
+echo "🧠 Step 5/11: Configuring AI Phone Controller..."
 
 # Create phone_control.sh
 cat > ~/phone_control.sh << 'EOF'
@@ -458,25 +462,6 @@ EOF
 
 
 echo "✅ Custom AI brain installed"
-
-# =========================================================================
-# 🎉 Done!
-# =========================================================================
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🎉 INSTALLATION COMPLETE!"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-echo "📱 Connect Shizuku (if not already):"
-echo "   1. Open Shizuku app → make sure it says 'Shizuku is running'"
-echo "   2. Run: shizuku"
-echo "   3. Test: rish -c whoami"
-echo ""
-echo "🔑 Set up your API keys:"
-echo "   1. Run: openclaw onboard"
-echo "   2. Run: openclaw auth add google --key YOUR_GEMINI_KEY"
-echo "   3. Run: openclaw gateway"
-echo ""
 
 # =========================================================================
 # Step 6/11: Install Ollama + Pull All AI Models
@@ -621,7 +606,7 @@ if [ -f "$SCRIPT_DIR/nastech_bot.js" ]; then
     echo "✅ Bot files copied from repo"
 else
     # Fetch from NasTech GitHub repo
-    API_BASE="${NASTECH_API_URL:-https://raw.githubusercontent.com/bantuvoice/NasTech/main/Openclaw-Termux-NoRoot}"
+    API_BASE="${NASTECH_API_URL:-https://raw.githubusercontent.com/bantuvoice/NasTech/main}"
     for FILE in nastech_bot.js nastech_phone.sh package.json; do
         curl -fsSL "$API_BASE/$FILE" -o "$NASTECH_DIR/$FILE" 2>/dev/null || \
             echo "⚠️  Could not fetch $FILE — check internet connection"
