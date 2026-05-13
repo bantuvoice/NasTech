@@ -1377,6 +1377,40 @@ async function startCLI() {
   prompt();
 }
 
+// ── Process Stability & Crash Notifications ───────────────────────────────────
+const _tgNotify = (msg) => {
+  if (!TOKEN || !ADMIN_ID) return;
+  fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: ADMIN_ID, text: msg })
+  }).catch(() => {});
+};
+
+process.on('uncaughtException', (err) => {
+  blog(`CRASH uncaughtException: ${err.message}\n${err.stack}`);
+  _tgNotify(`⚠️ NasTech bot error (non-fatal):\n${err.message}\n\nBot is still running.\nCheck logs: nastech log`);
+});
+
+process.on('unhandledRejection', (reason) => {
+  blog(`WARN unhandledRejection: ${reason}`);
+});
+
+process.on('SIGTERM', () => {
+  blog('NasTech bot stopped (SIGTERM)');
+  _tgNotify('🔴 NasTech bot stopped (SIGTERM).\nRestart: nastech bot\nAuto-restart: nastech watch');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  blog('NasTech bot stopped (SIGINT)');
+  process.exit(0);
+});
+
+process.on('exit', (code) => {
+  blog(`NasTech bot exited (code ${code})`);
+});
+
 // ── Entry ─────────────────────────────────────────────────────────────────────
 const mode=(process.argv.find(a=>a.startsWith('--mode='))?.split('=')?.[1])||'bot';
 (async()=>{
