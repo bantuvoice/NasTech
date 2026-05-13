@@ -835,9 +835,83 @@ case "${1:-help}" in
         echo -e "  Gemini:   $([ -n "$GEMINI_API_KEY" ] && echo "${GREEN}✅${NC}" || echo "${RED}❌${NC}")"
         ;;
     update)
-        echo -e "${CYAN}Updating NasTech...${NC}"
-        cd ~/.nastech/bot && npm install --no-audit --no-fund 2>&1 | tail -3
-        echo -e "${GREEN}✅ Updated${NC}"
+        echo -e "$BANNER"
+        echo -e "${CYAN}${BOLD}🔄 NasTech Update — downloading latest files from GitHub...${NC}"
+        echo ""
+
+        RAW="https://raw.githubusercontent.com/bantuvoice/NasTech/main"
+        BOT_DIR=~/.nastech/bot
+        UPDATE_FILES=(nastech_bot.js nastech_phone.sh nastech_watchdog.sh)
+        UPDATED=0
+        FAILED=0
+
+        # Remember if bot/watchdog were running
+        BOT_WAS_RUNNING=false
+        WD_WAS_RUNNING=false
+        pgrep -f "nastech_bot.js" >/dev/null 2>&1 && BOT_WAS_RUNNING=true
+        [ -f ~/.nastech/watchdog.pid ] && kill -0 "$(cat ~/.nastech/watchdog.pid 2>/dev/null)" 2>/dev/null && WD_WAS_RUNNING=true
+
+        # Stop bot gracefully before update
+        if $BOT_WAS_RUNNING; then
+            echo -e "  ${YELLOW}⏸  Stopping bot for update...${NC}"
+            pkill -f "nastech_bot.js" 2>/dev/null
+            sleep 1
+        fi
+        if $WD_WAS_RUNNING; then
+            WD_PID=$(cat ~/.nastech/watchdog.pid 2>/dev/null)
+            kill "$WD_PID" 2>/dev/null; rm -f ~/.nastech/watchdog.pid
+        fi
+
+        echo -e "  ${CYAN}📥 Downloading files:${NC}"
+        for FILE in "${UPDATE_FILES[@]}"; do
+            OLD_SIZE=$(wc -c < "$BOT_DIR/$FILE" 2>/dev/null || echo 0)
+            TMPFILE=$(mktemp)
+            if curl -fsSL --connect-timeout 10 --max-time 60 "$RAW/$FILE" -o "$TMPFILE" 2>/dev/null && [ -s "$TMPFILE" ]; then
+                NEW_SIZE=$(wc -c < "$TMPFILE")
+                DIFF=$((NEW_SIZE - OLD_SIZE))
+                DIFF_STR=$([ "$DIFF" -ge 0 ] && echo "+${DIFF}" || echo "${DIFF}")
+                mv "$TMPFILE" "$BOT_DIR/$FILE"
+                chmod +x "$BOT_DIR/$FILE" 2>/dev/null || true
+                echo -e "    ${GREEN}✅ $FILE${NC}  (${NEW_SIZE}B, ${DIFF_STR}B change)"
+                UPDATED=$((UPDATED + 1))
+            else
+                rm -f "$TMPFILE"
+                echo -e "    ${RED}❌ $FILE — download failed (keeping existing)${NC}"
+                FAILED=$((FAILED + 1))
+            fi
+        done
+
+        # Update npm packages silently
+        echo ""
+        echo -e "  ${CYAN}📦 Updating npm packages...${NC}"
+        cd "$BOT_DIR" && npm install --no-audit --no-fund --silent 2>&1 | grep -v "^$" | tail -3
+        echo -e "    ${GREEN}✅ npm packages up to date${NC}"
+
+        echo ""
+        echo -e "${GREEN}${BOLD}✅ Update complete — ${UPDATED} files updated${NC}$([ $FAILED -gt 0 ] && echo ", ${RED}${FAILED} failed${NC}" || echo "")"
+
+        # Restart bot/watchdog if they were running
+        if $WD_WAS_RUNNING; then
+            echo -e "  ${CYAN}🐕 Restarting watchdog...${NC}"
+            nohup bash "$BOT_DIR/nastech_watchdog.sh" >>~/.nastech/watchdog.log 2>&1 &
+            echo -e "  ${GREEN}✅ Watchdog restarted (PID: $!)${NC}"
+        elif $BOT_WAS_RUNNING; then
+            echo -e "  ${CYAN}🤖 Restarting bot...${NC}"
+            pgrep -x ollama >/dev/null || nohup ollama serve >~/.nastech/ollama.log 2>&1 &
+            nohup node "$BOT_DIR/nastech_bot.js" --mode=bot >>~/.nastech/bot.log 2>&1 &
+            echo -e "  ${GREEN}✅ Bot restarted (PID: $!)${NC}"
+        fi
+
+        # Send Telegram notification
+        source ~/.nastech/config.env 2>/dev/null
+        if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_ADMIN_ID" ]; then
+            MSG="🔄 NasTech updated — ${UPDATED} files refreshed from GitHub"
+            [ $FAILED -gt 0 ] && MSG="$MSG (⚠️ ${FAILED} failed)"
+            $BOT_WAS_RUNNING && MSG="$MSG\n✅ Bot auto-restarted"
+            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -H "Content-Type: application/json" \
+              -d "{\"chat_id\":\"${TELEGRAM_ADMIN_ID}\",\"text\":\"${MSG}\"}" >/dev/null 2>&1 &
+        fi
         ;;
     log|logs)
         tail -50 ~/.nastech/nastech.log 2>/dev/null || echo "No logs yet"
@@ -916,7 +990,7 @@ ${CYAN}SYSTEM${NC}
   nastech log              View bot logs
   nastech restart          Restart bot
   nastech stop             Stop bot
-  nastech update           Update dependencies
+  nastech update           Pull latest files from GitHub + restart bot
   nastech vim [file]       Open vim with NasTech AI
 
 ${CYAN}WATCHDOG (auto-restart)${NC}
