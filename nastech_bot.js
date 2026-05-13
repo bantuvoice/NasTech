@@ -990,9 +990,33 @@ function startBot() {
     if (data==='ok_reboot')   return send(id, PHONE.reboot());
     if (data==='cancel')      { clearState(id); return send(id,'❌ Cancelled.'); }
 
-    // YouTube picks
-    if (data==='yt_audio') { answCQ(cq.id,'🎵 Audio'); setState(id,{waiting:'ytdl_url',audio:true});  bot.sendMessage(id,'🎵 Paste YouTube URL:',{reply_markup:MAIN_KB}).catch(()=>{}); }
-    if (data==='yt_video') { answCQ(cq.id,'🎬 Video'); setState(id,{waiting:'ytdl_url',audio:false}); bot.sendMessage(id,'🎬 Paste YouTube URL:',{reply_markup:MAIN_KB}).catch(()=>{}); }
+    // YouTube picks (answCQ already called at top of handler)
+    if (data==='yt_audio') { setState(id,{waiting:'ytdl_url',audio:true});  return send(id,'🎵 Paste YouTube URL to download as *MP3*:'); }
+    if (data==='yt_video') { setState(id,{waiting:'ytdl_url',audio:false}); return send(id,'🎬 Paste YouTube URL to download as *MP4*:'); }
+
+    // Flashlight toggle
+    if (data==='fl_torch_on')  return send(id, PHONE.flashlight('on'));
+    if (data==='fl_torch_off') return send(id, PHONE.flashlight('off'));
+
+    // TTS callbacks (merged from second handler)
+    if (data==='tts_phone')    { setState(id,{waiting:'tts_speak'});     return send(id,'🔊 Type text to speak on phone speaker:'); }
+    if (data==='tts_send')     { setState(id,{waiting:'tts_voice'});     return send(id,'🎤 Type text — I will send back a voice message:'); }
+
+    // Clipboard callbacks
+    if (data==='clip_get')     return send(id, PHONE.clipboard());
+    if (data==='clip_set')     { setState(id,{waiting:'clipboard_set'}); return send(id,'📋 Type text to copy to clipboard:'); }
+
+    // Maps callbacks
+    if (data==='map_search_btn') { setState(id,{waiting:'map_search'}); return send(id,'📍 What place to search?'); }
+    if (data==='map_dir_btn')    { setState(id,{waiting:'map_dir'});    return send(id,'🚗 Directions to where?'); }
+    if (data==='map_food_btn')   return send(id, PHONE.maps('restaurants near me'));
+    if (data==='map_gas_btn')    return send(id, PHONE.maps('gas station near me'));
+    if (data==='map_hosp_btn')   return send(id, PHONE.maps('hospital near me'));
+    if (data==='map_me_btn')     { PHONE.maps('my location'); return send(id,'📌 Your location opened in Maps'); }
+
+    // AI extra callbacks
+    if (data==='ai_code_btn')    { setState(id,{waiting:'ai_code'});      return send(id,'💻 What code should I write?'); }
+    if (data==='ai_trans_btn')   { setState(id,{waiting:'ai_translate'});  return send(id,'🌍 Paste text to translate:'); }
   });
 
   // ── MESSAGE HANDLER ─────────────────────────────────────────────────────
@@ -1118,6 +1142,12 @@ function startBot() {
         return send(id, r.content.slice(0,4096));
       }
 
+      // Flashlight off (safety net for any lingering state)
+      if (state.waiting==='flash_off_confirm') {
+        sh('termux-torch off 2>/dev/null',{timeout:5000});
+        return send(id,'💡 Flashlight OFF');
+      }
+
       // Config inputs
       const cfgMap = { cf_token:'TELEGRAM_BOT_TOKEN', cf_admin:'TELEGRAM_ADMIN_ID', cf_groq:'GROQ_API_KEY', cf_gemini:'GEMINI_API_KEY', cf_or:'OPENROUTER_API_KEY', cf_ollama:'OLLAMA_URL', cf_model:null };
       if (cfgMap.hasOwnProperty(state.waiting)) {
@@ -1202,14 +1232,12 @@ function startBot() {
       // Row 7
       case '🖥 Screen Control': return sendInline(id,'🖥 *Screen Control:*', KB.screen());
       case '🎮 Media Keys':     return sendInline(id,'🎮 *Media Controls:*', KB.media());
-      case '🔦 Flashlight': {
-        const r=sh('termux-torch on 2>/dev/null',{timeout:5000});
-        if(r.ok) {
-          send(id,'🔦 Flashlight ON\n_Tap again to turn off_');
-          setState(id,{waiting:'flash_off_confirm'});
-        } else send(id,'🔦 Install *Termux:API* app from F-Droid for flashlight\n_(Download: f-droid.org → search Termux:API)_');
-        return;
-      }
+      case '🔦 Flashlight':
+        return sendInline(id,'🔦 *Flashlight Control:*', { inline_keyboard:[
+          [{ text:'🔦 Flashlight ON',  callback_data:'fl_torch_on'  },
+           { text:'💡 Flashlight OFF', callback_data:'fl_torch_off' }],
+          [{ text:'ℹ️ Requires Termux:API app (F-Droid)', callback_data:'cancel'}],
+        ]});
 
       // Row 8
       case '📞 Calls & SMS': return sendInline(id,'📞 *Communication:*', KB.comms());
@@ -1328,23 +1356,6 @@ function startBot() {
     typing(id);
     const r=await aiChat(text,id);
     send(id, r.content.slice(0,4096)+`\n_[${r.provider} • ${currentModel}]_`);
-  });
-
-  // Extra callback picks (TTS, clip, maps buttons)
-  bot.on('callback_query', async cq => {
-    const id=cq.message.chat.id, data=cq.data;
-    if (data==='tts_phone')       { answCQ(cq.id); setState(id,{waiting:'tts_speak'}); bot.sendMessage(id,'🔊 Type text to speak on phone:',{reply_markup:MAIN_KB}).catch(()=>{}); }
-    if (data==='tts_send')        { answCQ(cq.id); setState(id,{waiting:'tts_voice'}); bot.sendMessage(id,'🎤 Type text — I will send back a voice message:',{reply_markup:MAIN_KB}).catch(()=>{}); }
-    if (data==='clip_get')        { answCQ(cq.id); bot.sendMessage(id,PHONE.clipboard(),{parse_mode:'Markdown',reply_markup:MAIN_KB}).catch(()=>{}); }
-    if (data==='clip_set')        { answCQ(cq.id); setState(id,{waiting:'clipboard_set'}); bot.sendMessage(id,'📋 Type text to copy to clipboard:',{reply_markup:MAIN_KB}).catch(()=>{}); }
-    if (data==='map_search_btn')  { answCQ(cq.id); setState(id,{waiting:'map_search'}); bot.sendMessage(id,'📍 What place to search?',{reply_markup:MAIN_KB}).catch(()=>{}); }
-    if (data==='map_dir_btn')     { answCQ(cq.id); setState(id,{waiting:'map_dir'});    bot.sendMessage(id,'🚗 Where to get directions?',{reply_markup:MAIN_KB}).catch(()=>{}); }
-    if (data==='map_food_btn')    { answCQ(cq.id); bot.sendMessage(id,PHONE.maps('restaurants near me'),{parse_mode:'Markdown',reply_markup:MAIN_KB}).catch(()=>{}); }
-    if (data==='map_gas_btn')     { answCQ(cq.id); bot.sendMessage(id,PHONE.maps('gas station near me'),{parse_mode:'Markdown',reply_markup:MAIN_KB}).catch(()=>{}); }
-    if (data==='map_hosp_btn')    { answCQ(cq.id); bot.sendMessage(id,PHONE.maps('hospital near me'),{parse_mode:'Markdown',reply_markup:MAIN_KB}).catch(()=>{}); }
-    if (data==='map_me_btn')      { answCQ(cq.id); PHONE.maps('my location'); bot.sendMessage(id,'📌 Your location opened in Maps',{reply_markup:MAIN_KB}).catch(()=>{}); }
-    if (data==='ai_code_btn')     { answCQ(cq.id); setState(id,{waiting:'ai_code'}); bot.sendMessage(id,'💻 What code to write?',{reply_markup:MAIN_KB}).catch(()=>{}); }
-    if (data==='ai_trans_btn')    { answCQ(cq.id); setState(id,{waiting:'ai_translate'}); bot.sendMessage(id,'🌍 Paste text to translate:',{reply_markup:MAIN_KB}).catch(()=>{}); }
   });
 
   console.log(`\x1b[36m\x1b[1m🤖 NasTech AI v4.1 — 99 Features running\x1b[0m\nModel: ${currentModel} | Admin: ${ADMIN_ID||'not set'}`);
