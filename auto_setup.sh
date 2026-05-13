@@ -607,7 +607,7 @@ if [ -f "$SCRIPT_DIR/nastech_bot.js" ]; then
 else
     # Fetch from NasTech GitHub repo
     API_BASE="${NASTECH_API_URL:-https://raw.githubusercontent.com/bantuvoice/NasTech/main}"
-    for FILE in nastech_bot.js nastech_phone.sh package.json; do
+    for FILE in nastech_bot.js nastech_phone.sh nastech_watchdog.sh package.json; do
         curl -fsSL "$API_BASE/$FILE" -o "$NASTECH_DIR/$FILE" 2>/dev/null || \
             echo "⚠️  Could not fetch $FILE — check internet connection"
     done
@@ -798,6 +798,38 @@ case "${1:-help}" in
     stop)
         pkill -f nastech_bot.js 2>/dev/null && echo -e "${GREEN}✅ Bot stopped${NC}" || echo "Bot not running"
         ;;
+    watch)
+        if [ -f ~/.nastech/watchdog.pid ] && kill -0 "$(cat ~/.nastech/watchdog.pid 2>/dev/null)" 2>/dev/null; then
+            echo -e "${YELLOW}⚠️  Watchdog already running (PID: $(cat ~/.nastech/watchdog.pid))${NC}"
+            echo -e "   Stop it first: ${CYAN}nastech watch-stop${NC}"
+        else
+            echo -e "${GREEN}🐕 Starting NasTech Watchdog...${NC}"
+            nohup bash ~/.nastech/bot/nastech_watchdog.sh >>~/.nastech/watchdog.log 2>&1 &
+            sleep 1
+            echo -e "${GREEN}✅ Watchdog started (PID: $!)${NC}"
+            echo -e "${CYAN}   Bot auto-restarts on crash + Telegram alerts${NC}"
+            echo -e "${CYAN}   Logs: ~/.nastech/watchdog.log${NC}"
+        fi
+        ;;
+    watch-stop)
+        if [ -f ~/.nastech/watchdog.pid ]; then
+            WD_PID=$(cat ~/.nastech/watchdog.pid 2>/dev/null)
+            kill "$WD_PID" 2>/dev/null && echo -e "${GREEN}✅ Watchdog stopped (PID: $WD_PID)${NC}" || echo "Watchdog not running"
+            rm -f ~/.nastech/watchdog.pid
+        else
+            echo "Watchdog not running"
+        fi
+        ;;
+    watch-status)
+        if [ -f ~/.nastech/watchdog.pid ] && kill -0 "$(cat ~/.nastech/watchdog.pid 2>/dev/null)" 2>/dev/null; then
+            echo -e "${GREEN}🐕 Watchdog running (PID: $(cat ~/.nastech/watchdog.pid))${NC}"
+            echo -e "${CYAN}Last 5 watchdog log entries:${NC}"
+            tail -5 ~/.nastech/watchdog.log 2>/dev/null || echo "   (no log yet)"
+        else
+            echo -e "${RED}❌ Watchdog not running${NC}"
+            echo -e "   Start with: ${CYAN}nastech watch${NC}"
+        fi
+        ;;
     vim)
         shift
         vim "$@"
@@ -831,7 +863,13 @@ ${CYAN}SYSTEM${NC}
   nastech update           Update dependencies
   nastech vim [file]       Open vim with NasTech AI
 
+${CYAN}WATCHDOG (auto-restart)${NC}
+  nastech watch            Start watchdog — auto-restarts bot + Telegram alerts
+  nastech watch-stop       Stop the watchdog
+  nastech watch-status     Check watchdog status + last log lines
+
 ${CYAN}QUICK TIPS${NC}
+  nastech watch            → recommended: keeps bot alive 24/7
   nastech cli              → then type anything to chat
   nastech phone help       → full phone control list
   In vim: \\ne = explain, \\ng = generate, \\nf = fix
@@ -883,6 +921,7 @@ alias screenshot='nastech phone screenshot'
 alias wifion='nastech phone wifi on'
 alias wifioff='nastech phone wifi off'
 alias uidump='nastech phone ui-dump'
+alias ntw='nastech watch'        # start watchdog (auto-restart bot)
 RCEOF
 fi
 
@@ -1024,8 +1063,15 @@ echo "   2. Run: shizuku"
 echo "   3. Test: rish -c whoami"
 echo ""
 echo "🤖 Start the Telegram Bot:"
-echo "   nastech bot"
-echo "   (or just: nt bot)"
+echo "   nastech bot              ← one-shot start"
+echo "   nastech watch            ← recommended: 24/7 auto-restart + crash alerts"
+echo "   (or just: nt bot / ntw)"
+echo ""
+echo "🐕 Watchdog (keeps bot alive 24/7):"
+echo "   nastech watch            Start watchdog in background"
+echo "   nastech watch-status     Check if watchdog is running"
+echo "   nastech watch-stop       Stop watchdog"
+echo "   Sends Telegram alert on crash AND when recovered"
 echo ""
 echo "💻 Interactive AI Terminal:"
 echo "   nastech cli"
@@ -1047,9 +1093,11 @@ echo "   nastech pull phi3:mini  — pull bigger model"
 echo "   nastech status    — check everything"
 echo ""
 echo "⚙️  Config: ~/.nastech/config.env"
-echo "📋 Logs:   ~/.nastech/nastech.log"
+echo "📋 Bot Log:      ~/.nastech/bot.log"
+echo "📋 Watchdog Log: ~/.nastech/watchdog.log"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "Run 'source ~/.bashrc' to activate all shortcuts!"
+echo "Then run: nastech watch"
 echo ""
