@@ -44,15 +44,35 @@ pkg update -y -o Dpkg::Options::="--force-confold" -o Dpkg::Options::="--force-c
     echo "⚠️  pkg update had warnings (this is usually fine, continuing...)"
 }
 
-# Install required packages (some may already exist — that's OK)
-pkg install -y curl nodejs git cmake make clang binutils nmap openssl android-tools which \
-    python ffmpeg espeak termux-api </dev/null 2>&1 || {
-    echo "⚠️  Some packages may have failed to install, checking essentials..."
+# Install required packages — split into core (must-have) and optional
+echo "   Installing core packages (curl nodejs git python)..."
+pkg install -y curl nodejs git python openssl which </dev/null 2>&1 | tail -3 || {
+    echo "⚠️  Some core packages had issues — checking individually..."
+    for PKG in curl nodejs git python; do
+        pkg install -y "$PKG" </dev/null 2>&1 | tail -1 || true
+    done
 }
-# Install espeak separately if needed (TTS for voice features)
-command -v espeak &>/dev/null || pkg install -y espeak </dev/null 2>&1 | tail -2 || true
-# Install ffmpeg separately if needed (voice/audio conversion)
-command -v ffmpeg &>/dev/null || pkg install -y ffmpeg </dev/null 2>&1 | tail -2 || true
+
+echo "   Installing phone control tools (android-tools nmap)..."
+pkg install -y android-tools nmap </dev/null 2>&1 | tail -2 || true
+
+echo "   Installing media tools (ffmpeg)..."
+pkg install -y ffmpeg </dev/null 2>&1 | tail -2 || warn "ffmpeg unavailable — run: pkg install ffmpeg"
+
+echo "   Installing TTS voice (espeak-ng)..."
+# Termux uses espeak-ng (not espeak)
+if ! command -v espeak &>/dev/null && ! command -v espeak-ng &>/dev/null; then
+    pkg install -y espeak-ng </dev/null 2>&1 | tail -2 || \
+    pkg install -y espeak    </dev/null 2>&1 | tail -2 || \
+    warn "TTS unavailable — run: pkg install espeak-ng"
+fi
+# Symlink espeak-ng → espeak if needed
+if command -v espeak-ng &>/dev/null && ! command -v espeak &>/dev/null; then
+    ln -sf "$(command -v espeak-ng)" "$PREFIX/bin/espeak" 2>/dev/null || true
+fi
+
+echo "   Installing Termux API (phone sensors/clipboard)..."
+pkg install -y termux-api </dev/null 2>&1 | tail -2 || true
 
 # Verify the critical ones exist
 MISSING=""
@@ -335,10 +355,16 @@ echo "✅ IPv4 DNS fix applied"
 echo ""
 
 if command -v openclaw &>/dev/null || [ -d "$HOME/.openclaw/repo" ]; then
-    echo "✅ Step 4/11: OpenClaw is already installed! Skipping installation."
+    echo "✅ Step 4/11: OpenClaw already installed — skipping"
 else
-    echo "📦 Step 4/11: Installing OpenClaw. This takes a few minutes..."
-    bash -c "$(curl -sSL https://myopenclawhub.com/install)" < /dev/tty && source ~/.bashrc 2>/dev/null
+    echo "📦 Step 4/11: Installing OpenClaw (30s timeout)..."
+    INSTALL_SCRIPT=$(curl -sSL --connect-timeout 10 --max-time 25 https://myopenclawhub.com/install 2>/dev/null)
+    if [ -n "$INSTALL_SCRIPT" ]; then
+        timeout 60 bash -c "$INSTALL_SCRIPT" 2>/dev/null && source ~/.bashrc 2>/dev/null && \
+            echo "✅ OpenClaw installed" || warn "OpenClaw install failed — continuing without it"
+    else
+        warn "Step 4/11: OpenClaw server unreachable — skipping (bot works without it)"
+    fi
 fi
 
 # =========================================================================
@@ -477,10 +503,15 @@ else
     echo "📦 Installing Ollama for Termux..."
     pkg install -y proot-distro </dev/null 2>&1 | tail -3 || true
     # Install ollama via the official script (works in Termux with proot)
-    curl -fsSL https://ollama.ai/install.sh | bash 2>&1 | tail -5 || {
-        # Fallback: try pkg
-        pkg install -y ollama </dev/null 2>&1 | tail -3 || warn "Ollama install needs manual steps — run: pkg install ollama"
-    }
+    OLLAMA_SCRIPT=$(curl -fsSL --connect-timeout 10 --max-time 20 https://ollama.ai/install.sh 2>/dev/null)
+    if [ -n "$OLLAMA_SCRIPT" ]; then
+        timeout 120 bash -c "$OLLAMA_SCRIPT" 2>&1 | tail -5 || \
+            pkg install -y ollama </dev/null 2>&1 | tail -3 || \
+            warn "Ollama install failed — AI will use cloud APIs (Groq/Gemini)"
+    else
+        pkg install -y ollama </dev/null 2>&1 | tail -3 || \
+            warn "Ollama unavailable — AI will fall back to Groq/OpenRouter/Gemini"
+    fi
 fi
 
 # Start Ollama in background
@@ -651,8 +682,9 @@ if [ -d "$VIM_PACK/copilot.vim" ]; then
     echo "   Updating copilot.vim..."
     cd "$VIM_PACK/copilot.vim" && git pull --quiet 2>/dev/null || true
 else
-    echo "   Cloning copilot.vim..."
-    git clone --depth=1 https://github.com/github/copilot.vim "$VIM_PACK/copilot.vim" 2>&1 | tail -3
+    echo "   Cloning copilot.vim (60s timeout)..."
+    timeout 60 git clone --depth=1 https://github.com/github/copilot.vim "$VIM_PACK/copilot.vim" 2>&1 | tail -3 || \
+        warn "copilot.vim clone timed out — vim AI skipped"
 fi
 
 # Copy our NasTech-extended plugin over the vanilla one
@@ -697,13 +729,11 @@ echo "✅ Copilot.vim + NasTech AI ready"
 # =========================================================================
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "💻 Step 10/11: Installing Copilot CLI tools..."
+echo "💻 Step 10/11: Copilot CLI — using NasTech CLI instead"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-# GitHub Copilot CLI (requires GitHub auth — optional)
-npm install -g @githubnext/github-copilot-cli 2>&1 | tail -5 && \
-    echo "✅ GitHub Copilot CLI installed (run: github-copilot-cli auth)" || \
-    warn "GitHub Copilot CLI not available — NasTech CLI replaces it"
+# Skipping npm install -g @githubnext/github-copilot-cli — it's 500MB+ and requires GitHub auth
+# The built-in 'nastech cli' command replaces it fully
+echo "✅ NasTech CLI replaces GitHub Copilot CLI — no download needed"
 
 # =========================================================================
 # Step 11/11: Create 'nastech' CLI Command & Final Setup
